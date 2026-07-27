@@ -63,13 +63,13 @@ function generateCode() {
 }
 
 // ─── Keyboards ────────────────────────────────────────────────────────────────
-// Persistent reply keyboard — always visible at bottom of chat
+// Persistent reply keyboard — always expanded, cannot be minimised
 const REPLY_KB = Markup.keyboard([
   ['💎 ទិញ Telegram Premium', '🤖 សួរ AI'],
   ['🎮 ទិញ Account MLBB / FF', '👥 Referral'],
   ['🎁 បញ្ចូល Premium Code',   '💰 Wallet'],
   ['💸 ដកប្រាក់',              '👨‍💻 ទាក់ទង Admin'],
-]).resize();
+]).resize().persistent();
 
 const BACK_INLINE = Markup.inlineKeyboard([[Markup.button.callback('🔙 ត្រឡប់ Menu', 'back_main')]]);
 

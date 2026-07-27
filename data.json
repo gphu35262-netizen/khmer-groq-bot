@@ -23,6 +23,18 @@
       "state": null,
       "stateData": {},
       "createdAt": 1785146557733
+    },
+    "6214336913": {
+      "id": "6214336913",
+      "username": "NAROTO_GAMING1",
+      "firstName": "TELEGRAM_BOT_TOKEN",
+      "wallet": 0,
+      "referralCount": 0,
+      "premiumPurchased": 0,
+      "referredBy": null,
+      "state": null,
+      "stateData": {},
+      "createdAt": 1785147760152
     }
   },
   "premiumCodes": {
@@ -57,6 +69,14 @@
       "generatedAt": 1785147677788,
       "generatedBy": "admin",
       "usedAt": 1785147699795
+    },
+    "TGUE4W9KRT4PBB38JRDA": {
+      "code": "TGUE4W9KRT4PBB38JRDA",
+      "used": true,
+      "usedBy": "6214336913",
+      "generatedAt": 1785147780398,
+      "generatedBy": "admin",
+      "usedAt": 1785147794453
     }
   },
   "pendingPayments": [],
