@@ -4,11 +4,11 @@
       "id": "8104083569",
       "username": "CryptoSinnals_99K",
       "firstName": "NAROTO",
-      "wallet": 0,
-      "referralCount": 0,
+      "wallet": 0.2,
+      "referralCount": 1,
       "premiumPurchased": 0,
       "referredBy": null,
-      "state": "waiting_ai",
+      "state": null,
       "stateData": {},
       "createdAt": 1785146464583
     },
@@ -20,12 +20,29 @@
       "referralCount": 0,
       "premiumPurchased": 0,
       "referredBy": "8104083569",
-      "state": "waiting_code",
+      "state": null,
       "stateData": {},
       "createdAt": 1785146557733
     }
   },
-  "premiumCodes": {},
+  "premiumCodes": {
+    "TGQP9P5AMJAQAQT643H6": {
+      "code": "TGQP9P5AMJAQAQT643H6",
+      "used": true,
+      "usedBy": "8104083569",
+      "generatedAt": 1785147231210,
+      "generatedBy": "admin",
+      "usedAt": 1785147261105
+    },
+    "TGKYL3JXH4JF7NPL5WJK": {
+      "code": "TGKYL3JXH4JF7NPL5WJK",
+      "used": true,
+      "usedBy": "8796001987",
+      "generatedAt": 1785147293979,
+      "generatedBy": "admin",
+      "usedAt": 1785147349128
+    }
+  },
   "pendingPayments": [],
   "pendingWithdrawals": [],
   "adminChatId": "8104083569"
