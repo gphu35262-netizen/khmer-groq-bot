@@ -73,6 +73,14 @@ const REPLY_KB = Markup.keyboard([
 
 const BACK_INLINE = Markup.inlineKeyboard([[Markup.button.callback('🔙 ត្រឡប់ Menu', 'back_main')]]);
 
+// Compact inline menu — shown right next to photos for quick access
+const PHOTO_MENU_INLINE = Markup.inlineKeyboard([
+  [Markup.button.callback('💎 ទិញ Premium',   'buy_premium'),  Markup.button.callback('🤖 AI',      'ask_ai')],
+  [Markup.button.callback('🎮 Game Account',  'buy_game'),     Markup.button.callback('👥 Referral', 'referral')],
+  [Markup.button.callback('🎁 Premium Code',  'enter_code'),   Markup.button.callback('💰 Wallet',  'wallet')],
+  [Markup.button.callback('💸 ដកប្រាក់',      'withdraw'),     Markup.button.callback('👨‍💻 Admin',  'contact_admin')],
+]);
+
 const PACKAGES = [
   { id: 'pkg_1m',  label: '💎 1 ខែ — 4.99$',    price: 4.99,  duration: '1 ខែ' },
   { id: 'pkg_3m',  label: '💎 3 ខែ — 12.99$',   price: 12.99, duration: '3 ខែ' },
@@ -274,8 +282,12 @@ PACKAGES.forEach(pkg => {
       await ctx.replyWithPhoto(
         { source: QR_IMAGE_PATH },
         {
-          caption: `💳 <b>ABA QR</b> — Telegram Premium ${esc(pkg.duration)} (${esc(fmtMoney(pkg.price))})\n\nបង់រួចផ្ញើ Screenshot ក្នុង Bot នេះ 👇`,
+          caption:
+            `💳 <b>ABA QR</b> — Telegram Premium ${esc(pkg.duration)} (${esc(fmtMoney(pkg.price))})\n\n` +
+            `📌 Scan រួចបង់ប្រាក់ ហើយ <b>ផ្ញើ Screenshot ក្នុង Bot នេះ</b>\n\n` +
+            `ចូលមើល Menu បន្ថែម 👇`,
           parse_mode: 'HTML',
+          ...PHOTO_MENU_INLINE,
         }
       );
     } catch (e) { console.error('QR send error:', e.message); }
@@ -612,7 +624,7 @@ Admin: @CryptoSinnals_99K. Payment via ABA QR code. After payment, user sends sc
     return;
   }
 
-  // ── User sends a photo (payment screenshot) ───────────────────────────────
+  // ── User sends a photo (payment screenshot or random photo) ─────────────
   if (ctx.message.photo) {
     const fileId = ctx.message.photo[ctx.message.photo.length - 1].file_id;
     const pId = 'P' + Date.now();
@@ -627,16 +639,32 @@ Admin: @CryptoSinnals_99K. Payment via ABA QR code. After payment, user sends sc
         });
       } catch {}
     }
+    // Reply with confirmation + full inline menu buttons right next to the photo
     await ctx.reply(
-      `📷 <b>Screenshot បានទទួល!</b>\n\nAdmin នឹង Review ហើយ Approve ក្នុងពេលឆាប់ៗ ⏳\nអ្នកនឹងទទួល Premium Code ពេល Admin Approve!`,
-      { parse_mode: 'HTML', ...REPLY_KB }
+      `📷 <b>Screenshot បានទទួល!</b>\n\n` +
+      `⏳ Admin នឹង Review ហើយ Approve ក្នុងពេលឆាប់ៗ\n` +
+      `✅ អ្នកនឹងទទួល Premium Code ពេល Approve!\n\n` +
+      `ចូលប្រើ Menu ខាងក្រោម 👇`,
+      { parse_mode: 'HTML', ...PHOTO_MENU_INLINE }
+    );
+    return;
+  }
+
+  // ── User sends any other file/sticker/etc. ────────────────────────────────
+  if (ctx.message.sticker || ctx.message.document || ctx.message.animation || ctx.message.video) {
+    await ctx.reply(
+      `😊 អរគុណ!\n\nសូមជ្រើសសេវាកម្ម ឬចុច /start 👇`,
+      { parse_mode: 'HTML', ...PHOTO_MENU_INLINE }
     );
     return;
   }
 
   // ── Default ───────────────────────────────────────────────────────────────
   if (ctx.message.text && !ctx.message.text.startsWith('/')) {
-    await ctx.reply('🤖 ចុច /start ឬជ្រើសសេវាខាងក្រោម 👇', { parse_mode: 'HTML', ...REPLY_KB });
+    await ctx.reply(
+      `🤖 ជ្រើសសេវាកម្ម ឬចុច /start 👇`,
+      { parse_mode: 'HTML', ...PHOTO_MENU_INLINE }
+    );
   }
 });
 

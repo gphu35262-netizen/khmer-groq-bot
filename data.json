@@ -4,8 +4,8 @@
       "id": "8104083569",
       "username": "CryptoSinnals_99K",
       "firstName": "NAROTO",
-      "wallet": 0.2,
-      "referralCount": 1,
+      "wallet": 0.4,
+      "referralCount": 2,
       "premiumPurchased": 0,
       "referredBy": null,
       "state": null,
@@ -41,6 +41,22 @@
       "generatedAt": 1785147293979,
       "generatedBy": "admin",
       "usedAt": 1785147349128
+    },
+    "TGABYK8MBQE6UKKBUHUD": {
+      "code": "TGABYK8MBQE6UKKBUHUD",
+      "used": true,
+      "usedBy": "8104083569",
+      "generatedAt": 1785147639889,
+      "generatedBy": "admin",
+      "usedAt": 1785147651807
+    },
+    "TGUATYZR46JJJJBWQ6KK": {
+      "code": "TGUATYZR46JJJJBWQ6KK",
+      "used": true,
+      "usedBy": "8796001987",
+      "generatedAt": 1785147677788,
+      "generatedBy": "admin",
+      "usedAt": 1785147699795
     }
   },
   "pendingPayments": [],
