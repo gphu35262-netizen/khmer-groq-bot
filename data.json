@@ -1,0 +1,32 @@
+{
+  "users": {
+    "8104083569": {
+      "id": "8104083569",
+      "username": "CryptoSinnals_99K",
+      "firstName": "NAROTO",
+      "wallet": 0,
+      "referralCount": 0,
+      "premiumPurchased": 0,
+      "referredBy": null,
+      "state": "waiting_ai",
+      "stateData": {},
+      "createdAt": 1785146464583
+    },
+    "8796001987": {
+      "id": "8796001987",
+      "username": "Sovnanareach8",
+      "firstName": "PU KH BBS",
+      "wallet": 0,
+      "referralCount": 0,
+      "premiumPurchased": 0,
+      "referredBy": "8104083569",
+      "state": "waiting_code",
+      "stateData": {},
+      "createdAt": 1785146557733
+    }
+  },
+  "premiumCodes": {},
+  "pendingPayments": [],
+  "pendingWithdrawals": [],
+  "adminChatId": "8104083569"
+}

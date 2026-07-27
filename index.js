@@ -1,4 +1,4 @@
-const { Telegraf, Markup, session } = require('telegraf');
+const { Telegraf, Markup } = require('telegraf');
 const Groq = require('groq-sdk');
 const fs = require('fs');
 const path = require('path');
@@ -14,6 +14,18 @@ if (!BOT_TOKEN) { console.error('❌ TELEGRAM_BOT_TOKEN not set'); process.exit(
 
 const bot = new Telegraf(BOT_TOKEN);
 const groq = new Groq({ apiKey: GROQ_API_KEY });
+
+// ─── HTML helper ──────────────────────────────────────────────────────────────
+function esc(text) {
+  return String(text)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+const b  = t => `<b>${esc(t)}</b>`;
+const i  = t => `<i>${esc(t)}</i>`;
+const c  = t => `<code>${esc(t)}</code>`;
+const HTML = { parse_mode: 'HTML' };
 
 // ─── Simple JSON Database ─────────────────────────────────────────────────────
 function loadDB() {
@@ -46,7 +58,6 @@ function getOrCreateUser(db, ctx) {
       createdAt: Date.now(),
     };
   } else {
-    // update username in case it changed
     db.users[id].username = ctx.from.username || db.users[id].username;
     db.users[id].firstName = ctx.from.first_name || db.users[id].firstName;
   }
@@ -56,8 +67,7 @@ function getOrCreateUser(db, ctx) {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function isAdmin(ctx) {
   const db = loadDB();
-  const uid = String(ctx.from.id);
-  return uid === String(db.adminChatId) || ctx.from.username === ADMIN_USERNAME;
+  return String(ctx.from.id) === String(db.adminChatId) || ctx.from.username === ADMIN_USERNAME;
 }
 
 function generateCode() {
@@ -68,6 +78,13 @@ function generateCode() {
 }
 
 function fmtMoney(n) { return '$' + Number(n).toFixed(2); }
+
+function userLabel(u) {
+  if (!u) return 'N/A';
+  let s = u.firstName || 'N/A';
+  if (u.username) s += ` (@${u.username})`;
+  return s;
+}
 
 // ─── Keyboards ────────────────────────────────────────────────────────────────
 const MAIN_MENU = Markup.inlineKeyboard([
@@ -97,15 +114,24 @@ function premiumKeyboard() {
   ]);
 }
 
+// ─── Safe edit helper ─────────────────────────────────────────────────────────
+async function safeEdit(ctx, text, extra = {}) {
+  try {
+    await ctx.editMessageText(text, { parse_mode: 'HTML', ...extra });
+  } catch (e) {
+    if (e.message?.includes('message is not modified')) return;
+    // Fallback: send new message
+    await ctx.reply(text, { parse_mode: 'HTML', ...extra });
+  }
+}
+
 // ─── /start ───────────────────────────────────────────────────────────────────
 bot.start(async (ctx) => {
   const db = loadDB();
   const user = getOrCreateUser(db, ctx);
 
-  // Register admin
   if (ctx.from.username === ADMIN_USERNAME) db.adminChatId = String(ctx.from.id);
 
-  // Handle referral payload
   const payload = ctx.startPayload;
   if (payload && payload !== String(ctx.from.id) && !user.referredBy && db.users[payload]) {
     user.referredBy = payload;
@@ -115,286 +141,295 @@ bot.start(async (ctx) => {
   user.stateData = {};
   saveDB(db);
 
-  const name = ctx.from.first_name || 'បង';
+  const name = esc(ctx.from.first_name || 'បង');
   await ctx.reply(
-    `🤖 *សូមស្វាគមន៍មកកាន់ Telegram Premium Service*\n\n` +
-    `❤️ សួស្តី *${name}*!\n\n` +
+    `🤖 <b>សូមស្វាគមន៍មកកាន់ Telegram Premium Service</b>\n\n` +
+    `❤️ សួស្តី <b>${name}</b>!\n\n` +
     `🎉 សូមជ្រើសរើសសេវាកម្មខាងក្រោម 👇`,
-    { parse_mode: 'Markdown', ...MAIN_MENU }
+    { parse_mode: 'HTML', ...MAIN_MENU }
   );
 });
 
 // ─── Back to main ─────────────────────────────────────────────────────────────
 bot.action('back_main', async (ctx) => {
-  await ctx.answerCbQuery();
+  await ctx.answerCbQuery().catch(() => {});
   const db = loadDB();
   const user = getOrCreateUser(db, ctx);
   user.state = null;
   user.stateData = {};
   saveDB(db);
-  await ctx.editMessageText(
+  await safeEdit(ctx,
     `🎉 សូមជ្រើសរើសសេវាកម្មខាងក្រោម 👇`,
-    { parse_mode: 'Markdown', ...MAIN_MENU }
+    MAIN_MENU
   );
 });
 
 // ─── 💎 Buy Premium ───────────────────────────────────────────────────────────
 bot.action('buy_premium', async (ctx) => {
-  await ctx.answerCbQuery();
-  await ctx.editMessageText(
-    `💎 *Telegram Premium*\n\n❤️ សួស្តីបង!\n\nសូមជ្រើសរើស Package ដែលអ្នកចង់ទិញ 👇`,
-    { parse_mode: 'Markdown', ...premiumKeyboard() }
+  await ctx.answerCbQuery().catch(() => {});
+  await safeEdit(ctx,
+    `💎 <b>Telegram Premium</b>\n\n❤️ សួស្តីបង!\n\nសូមជ្រើសរើស Package ដែលអ្នកចង់ទិញ 👇`,
+    premiumKeyboard()
   );
 });
 
 PACKAGES.forEach(pkg => {
   bot.action('pkg_' + pkg.id, async (ctx) => {
-    await ctx.answerCbQuery();
-    await ctx.editMessageText(
-      `✅ *Telegram Premium ${pkg.duration}*\n\n` +
-      `💵 តម្លៃ *${fmtMoney(pkg.price)}*\n\n` +
+    await ctx.answerCbQuery().catch(() => {});
+    await safeEdit(ctx,
+      `✅ <b>Telegram Premium ${esc(pkg.duration)}</b>\n\n` +
+      `💵 តម្លៃ <b>${esc(fmtMoney(pkg.price))}</b>\n\n` +
       `📷 សូម Scan QR Code ខាងក្រោម រួចបង់ប្រាក់\n\n` +
-      `✅ បន្ទាប់ពីបង់ប្រាក់ សូមផ្ញើ Screenshot មក Admin\n👤 @${ADMIN_USERNAME}`,
-      { parse_mode: 'Markdown', ...BACK_BTN }
+      `✅ បន្ទាប់ពីបង់ប្រាក់ សូមផ្ញើ Screenshot មក Admin\n` +
+      `👤 @${ADMIN_USERNAME}`,
+      BACK_BTN
     );
-    // Send QR image separately
-    await ctx.replyWithPhoto(
-      { source: QR_IMAGE_PATH },
-      {
-        caption: `💳 *ABA QR* — Telegram Premium ${pkg.duration} (${fmtMoney(pkg.price)})\n\nបង់រួចផ្ញើ Screenshot ទៅ 👤 @${ADMIN_USERNAME}`,
-        parse_mode: 'Markdown',
-      }
-    );
+    try {
+      await ctx.replyWithPhoto(
+        { source: QR_IMAGE_PATH },
+        {
+          caption: `💳 <b>ABA QR</b> — Telegram Premium ${esc(pkg.duration)} (${esc(fmtMoney(pkg.price))})\n\nបង់រួចផ្ញើ Screenshot ទៅ 👤 @${ADMIN_USERNAME}`,
+          parse_mode: 'HTML',
+        }
+      );
+    } catch (e) {
+      console.error('QR send error:', e.message);
+    }
   });
 });
 
 // ─── 🤖 AI Assistant ──────────────────────────────────────────────────────────
 bot.action('ask_ai', async (ctx) => {
-  await ctx.answerCbQuery();
+  await ctx.answerCbQuery().catch(() => {});
   const db = loadDB();
   const user = getOrCreateUser(db, ctx);
   user.state = 'waiting_ai';
   user.stateData = {};
   saveDB(db);
-  await ctx.editMessageText(
-    `🤖 *AI Assistant*\n\nសូមវាយសំណួររបស់អ្នក!\n\n` +
-    `_ខ្ញុំអាចឆ្លើយអំពីៈ Telegram Premium, តម្លៃ, អត្ថប្រយោជន៍, របៀបទិញ, រយៈពេលរង់ចាំ, សុវត្ថិភាព_`,
-    { parse_mode: 'Markdown', ...BACK_BTN }
+  await safeEdit(ctx,
+    `🤖 <b>AI Assistant</b>\n\nសូមវាយសំណួររបស់អ្នក!\n\n` +
+    `<i>ខ្ញុំអាចឆ្លើយអំពីៈ Telegram Premium, តម្លៃ, អត្ថប្រយោជន៍, របៀបទិញ, រយៈពេលរង់ចាំ, សុវត្ថិភាព</i>`,
+    BACK_BTN
   );
 });
 
 // ─── 🎮 Game Account ──────────────────────────────────────────────────────────
 bot.action('buy_game', async (ctx) => {
-  await ctx.answerCbQuery();
-  await ctx.editMessageText(
-    `🎮 *Game Account*\n\n` +
-    `🎮 *MLBB* (Mobile Legends Bang Bang)\n` +
-    `🎮 *Free Fire*\n\n` +
-    `💵 តម្លៃចាប់ពី *4$* ឡើង\n\n` +
+  await ctx.answerCbQuery().catch(() => {});
+  await safeEdit(ctx,
+    `🎮 <b>Game Account</b>\n\n` +
+    `🎮 <b>MLBB</b> (Mobile Legends Bang Bang)\n` +
+    `🎮 <b>Free Fire</b>\n\n` +
+    `💵 តម្លៃចាប់ពី <b>4$</b> ឡើង\n\n` +
     `📩 សូមទាក់ទង Admin ដើម្បីទិញ\n👤 @${ADMIN_USERNAME}`,
-    { parse_mode: 'Markdown', ...BACK_BTN }
+    BACK_BTN
   );
 });
 
 // ─── 👥 Referral ──────────────────────────────────────────────────────────────
 bot.action('referral', async (ctx) => {
-  await ctx.answerCbQuery();
+  await ctx.answerCbQuery().catch(() => {});
   const db = loadDB();
   const user = getOrCreateUser(db, ctx);
 
-  // Get bot username
   let botUsername = '';
-  try {
-    const me = await bot.telegram.getMe();
-    botUsername = me.username;
-  } catch {}
+  try { const me = await bot.telegram.getMe(); botUsername = me.username; } catch {}
 
-  const link = botUsername ? `https://t.me/${botUsername}?start=${user.id}` : `ចូល Bot ហើយ /start`;
+  const link = botUsername
+    ? `https://t.me/${botUsername}?start=${user.id}`
+    : 'ចូល Bot ហើយ /start';
 
   saveDB(db);
-  await ctx.editMessageText(
-    `👥 *Referral Program*\n\n` +
-    `💰 *Reward:* 0.20$ / Premium Code ដែលបានប្រើ\n\n` +
-    `🔗 *Referral Link របស់អ្នក:*\n\`${link}\`\n\n` +
-    `📊 *Stats:*\n` +
-    `👥 អ្នកណែនាំ: *${user.referralCount}* នាក់\n` +
-    `💰 Earned: *${fmtMoney(user.wallet)}*\n\n` +
-    `*របៀបទទួល 0.20$:*\n` +
+  await safeEdit(ctx,
+    `👥 <b>Referral Program</b>\n\n` +
+    `💰 <b>Reward:</b> 0.20$ / Premium Code ដែលបានប្រើ\n\n` +
+    `🔗 <b>Referral Link របស់អ្នក:</b>\n<code>${esc(link)}</code>\n\n` +
+    `📊 <b>Stats:</b>\n` +
+    `👥 អ្នកណែនាំ: <b>${user.referralCount}</b> នាក់\n` +
+    `💰 Earned: <b>${fmtMoney(user.wallet)}</b>\n\n` +
+    `<b>របៀបទទួល 0.20$:</b>\n` +
     `1️⃣ ផ្ញើ Referral Link ទៅមិត្ត\n` +
     `2️⃣ មិត្តចូល Bot\n` +
     `3️⃣ មិត្តទិញ Telegram Premium\n` +
     `4️⃣ Admin អនុម័ត\n` +
     `5️⃣ Bot ផ្ញើ Premium Code ទៅមិត្ត\n` +
     `6️⃣ មិត្តបញ្ចូល Premium Code\n` +
-    `7️⃣ Wallet របស់អ្នក ✅ *+0.20$*`,
-    { parse_mode: 'Markdown', ...BACK_BTN }
+    `7️⃣ Wallet របស់អ្នក ✅ <b>+0.20$</b>`,
+    BACK_BTN
   );
 });
 
 // ─── 🎁 Enter Premium Code ────────────────────────────────────────────────────
 bot.action('enter_code', async (ctx) => {
-  await ctx.answerCbQuery();
+  await ctx.answerCbQuery().catch(() => {});
   const db = loadDB();
   const user = getOrCreateUser(db, ctx);
   user.state = 'waiting_code';
   user.stateData = {};
   saveDB(db);
-  await ctx.editMessageText(
-    `🎁 *Premium Code*\n\nសូមវាយ Premium Code 20 តួ\n\n_ឧទាហរណ៍: TG8A9K4M2P1X7Q5R6N3Z_`,
-    { parse_mode: 'Markdown', ...BACK_BTN }
+  await safeEdit(ctx,
+    `🎁 <b>Premium Code</b>\n\nសូមវាយ Premium Code 20 តួ\n\n<i>ឧទាហរណ៍: TG8A9K4M2P1X7Q5R6N3Z</i>`,
+    BACK_BTN
   );
 });
 
 // ─── 💰 Wallet ────────────────────────────────────────────────────────────────
 bot.action('wallet', async (ctx) => {
-  await ctx.answerCbQuery();
+  await ctx.answerCbQuery().catch(() => {});
   const db = loadDB();
   const user = getOrCreateUser(db, ctx);
   saveDB(db);
-  await ctx.editMessageText(
-    `💰 *Wallet*\n\n` +
-    `💵 Balance: *${fmtMoney(user.wallet)}*\n` +
-    `👥 Referral Earned: *${user.referralCount}*\n` +
-    `💎 Premium Purchased: *${user.premiumPurchased}*`,
-    { parse_mode: 'Markdown', ...BACK_BTN }
+  await safeEdit(ctx,
+    `💰 <b>Wallet</b>\n\n` +
+    `💵 Balance: <b>${fmtMoney(user.wallet)}</b>\n` +
+    `👥 Referral Earned: <b>${user.referralCount}</b>\n` +
+    `💎 Premium Purchased: <b>${user.premiumPurchased}</b>`,
+    BACK_BTN
   );
 });
 
 // ─── 💸 Withdraw ──────────────────────────────────────────────────────────────
 bot.action('withdraw', async (ctx) => {
-  await ctx.answerCbQuery();
+  await ctx.answerCbQuery().catch(() => {});
   const db = loadDB();
   const user = getOrCreateUser(db, ctx);
 
   if (user.wallet < 2.00) {
     saveDB(db);
-    return ctx.editMessageText(
-      `❌ *ដកប្រាក់មិនបាន*\n\nអ្នកត្រូវមាន *យ៉ាងតិច 2.00$* ដើម្បីដកប្រាក់។\n\n💰 Balance បច្ចុប្បន្ន: *${fmtMoney(user.wallet)}*`,
-      { parse_mode: 'Markdown', ...BACK_BTN }
+    return safeEdit(ctx,
+      `❌ <b>ដកប្រាក់មិនបាន</b>\n\nអ្នកត្រូវមាន <b>យ៉ាងតិច 2.00$</b> ដើម្បីដកប្រាក់។\n\n💰 Balance បច្ចុប្បន្ន: <b>${fmtMoney(user.wallet)}</b>`,
+      BACK_BTN
     );
   }
 
   user.state = 'waiting_withdraw_qr';
   user.stateData = {};
   saveDB(db);
-  await ctx.editMessageText(
-    `💸 *Withdraw*\n\n` +
-    `💵 Balance: *${fmtMoney(user.wallet)}*\n\n` +
-    `📷 សូមផ្ញើ *ABA QR* របស់អ្នក\n\nBot នឹងផ្ញើសំណើទៅ Admin ដើម្បីអនុម័ត។`,
-    { parse_mode: 'Markdown', ...BACK_BTN }
+  await safeEdit(ctx,
+    `💸 <b>Withdraw</b>\n\n` +
+    `💵 Balance: <b>${fmtMoney(user.wallet)}</b>\n\n` +
+    `📷 សូមផ្ញើ <b>ABA QR</b> របស់អ្នក\n\nBot នឹងផ្ញើសំណើទៅ Admin ដើម្បីអនុម័ត។`,
+    BACK_BTN
   );
 });
 
 // ─── 👨‍💻 Contact Admin ─────────────────────────────────────────────────────────
 bot.action('contact_admin', async (ctx) => {
-  await ctx.answerCbQuery();
-  await ctx.editMessageText(
-    `👨‍💻 *Contact Admin*\n\n👉 @${ADMIN_USERNAME}\n\n_Admin ជួយ 24/7_`,
-    { parse_mode: 'Markdown', ...BACK_BTN }
+  await ctx.answerCbQuery().catch(() => {});
+  await safeEdit(ctx,
+    `👨‍💻 <b>Contact Admin</b>\n\n👉 @${ADMIN_USERNAME}\n\n<i>Admin ជួយ 24/7</i>`,
+    BACK_BTN
   );
 });
 
-// ─── Admin Panel ──────────────────────────────────────────────────────────────
-bot.command('admin', async (ctx) => {
-  if (!isAdmin(ctx)) {
-    return ctx.reply('❌ អ្នកមិនមានសិទ្ធិ Admin');
-  }
-  const db = loadDB();
+// ─── Admin keyboard helper ────────────────────────────────────────────────────
+function adminMainKeyboard() {
+  return Markup.inlineKeyboard([
+    [Markup.button.callback('👥 មើល Users', 'adm_users')],
+    [Markup.button.callback('🔐 Generate Premium Code', 'adm_gen_code')],
+    [Markup.button.callback('✅ Approve Payments', 'adm_payments')],
+    [Markup.button.callback('💸 Approve Withdrawals', 'adm_withdrawals')],
+  ]);
+}
+
+function adminPanelText(db) {
   const userCount = Object.keys(db.users).length;
   const codeCount = Object.keys(db.premiumCodes).length;
   const usedCodes = Object.values(db.premiumCodes).filter(c => c.used).length;
-  const pendingPay = db.pendingPayments.length;
-  const pendingWith = db.pendingWithdrawals.length;
-
-  await ctx.reply(
-    `👨‍💻 *Admin Panel*\n\n` +
-    `👥 Users: *${userCount}*\n` +
-    `🔐 Premium Codes: *${codeCount}* (ប្រើហើយ: ${usedCodes})\n` +
-    `⏳ Pending Payments: *${pendingPay}*\n` +
-    `⏳ Pending Withdrawals: *${pendingWith}*`,
-    {
-      parse_mode: 'Markdown',
-      ...Markup.inlineKeyboard([
-        [Markup.button.callback('👥 មើល Users', 'adm_users')],
-        [Markup.button.callback('🔐 Generate Premium Code', 'adm_gen_code')],
-        [Markup.button.callback('✅ Approve Payments', 'adm_payments')],
-        [Markup.button.callback('💸 Approve Withdrawals', 'adm_withdrawals')],
-      ])
-    }
+  return (
+    `👨‍💻 <b>Admin Panel</b>\n\n` +
+    `👥 Users: <b>${userCount}</b>\n` +
+    `🔐 Codes: <b>${codeCount}</b> (ប្រើហើយ: ${usedCodes})\n` +
+    `⏳ Payments: <b>${db.pendingPayments.length}</b>\n` +
+    `⏳ Withdrawals: <b>${db.pendingWithdrawals.length}</b>`
   );
+}
+
+// ─── /admin command ───────────────────────────────────────────────────────────
+bot.command('admin', async (ctx) => {
+  if (!isAdmin(ctx)) return ctx.reply('❌ អ្នកមិនមានសិទ្ធិ Admin');
+  const db = loadDB();
+  // Register admin chat ID automatically
+  db.adminChatId = String(ctx.from.id);
+  saveDB(db);
+  await ctx.reply(adminPanelText(db), { parse_mode: 'HTML', ...adminMainKeyboard() });
+});
+
+bot.action('adm_back', async (ctx) => {
+  await ctx.answerCbQuery().catch(() => {});
+  if (!isAdmin(ctx)) return;
+  const db = loadDB();
+  await safeEdit(ctx, adminPanelText(db), adminMainKeyboard());
 });
 
 bot.action('adm_users', async (ctx) => {
-  await ctx.answerCbQuery();
-  if (!isAdmin(ctx)) return ctx.reply('❌ Admin Only');
+  await ctx.answerCbQuery().catch(() => {});
+  if (!isAdmin(ctx)) return;
   const db = loadDB();
   const users = Object.values(db.users).slice(0, 20);
-  let text = `👥 *Users (${Object.keys(db.users).length} total)*\n\n`;
+  let text = `👥 <b>Users (${Object.keys(db.users).length} total)</b>\n\n`;
   users.forEach(u => {
-    text += `• ${u.firstName || 'N/A'}${u.username ? ' (@' + u.username + ')' : ''} — 💰${fmtMoney(u.wallet)} | 👥${u.referralCount}\n`;
+    text += `• ${esc(u.firstName || 'N/A')}${u.username ? ' (@' + esc(u.username) + ')' : ''} — 💰${fmtMoney(u.wallet)} | 👥${u.referralCount}\n`;
   });
-  if (Object.keys(db.users).length > 20) text += `\n_...and more_`;
-  await ctx.editMessageText(text, { parse_mode: 'Markdown', ...Markup.inlineKeyboard([[Markup.button.callback('🔙 Admin', 'adm_back')]]) });
+  if (Object.keys(db.users).length > 20) text += `\n<i>...and more</i>`;
+  await safeEdit(ctx, text, Markup.inlineKeyboard([[Markup.button.callback('🔙 Admin', 'adm_back')]]));
 });
 
 bot.action('adm_gen_code', async (ctx) => {
-  await ctx.answerCbQuery();
-  if (!isAdmin(ctx)) return ctx.reply('❌ Admin Only');
+  await ctx.answerCbQuery().catch(() => {});
+  if (!isAdmin(ctx)) return;
   const db = loadDB();
   const code = generateCode();
   db.premiumCodes[code] = { code, used: false, usedBy: null, generatedAt: Date.now(), generatedBy: 'admin' };
   saveDB(db);
-  await ctx.editMessageText(
-    `🔐 *Premium Code បានបង្កើត!*\n\n\`${code}\`\n\n_ផ្ញើ Code នេះទៅ User បន្ទាប់ពី Approve Payment_`,
-    { parse_mode: 'Markdown', ...Markup.inlineKeyboard([[Markup.button.callback('🔙 Admin', 'adm_back')]]) }
+  await safeEdit(ctx,
+    `🔐 <b>Premium Code បានបង្កើត!</b>\n\n<code>${code}</code>\n\n<i>ផ្ញើ Code នេះទៅ User បន្ទាប់ពី Approve Payment</i>`,
+    Markup.inlineKeyboard([[Markup.button.callback('🔙 Admin', 'adm_back')]])
   );
 });
 
 bot.action('adm_payments', async (ctx) => {
-  await ctx.answerCbQuery();
-  if (!isAdmin(ctx)) return ctx.reply('❌ Admin Only');
+  await ctx.answerCbQuery().catch(() => {});
+  if (!isAdmin(ctx)) return;
   const db = loadDB();
   if (db.pendingPayments.length === 0) {
-    return ctx.editMessageText('✅ គ្មាន Pending Payments', { ...Markup.inlineKeyboard([[Markup.button.callback('🔙 Admin', 'adm_back')]]) });
+    return safeEdit(ctx, '✅ គ្មាន Pending Payments',
+      Markup.inlineKeyboard([[Markup.button.callback('🔙 Admin', 'adm_back')]])
+    );
   }
   const pay = db.pendingPayments[0];
   const user = db.users[pay.userId];
-  await ctx.editMessageText(
-    `💳 *Pending Payment*\n\n` +
-    `👤 User: ${user?.firstName || 'N/A'}${user?.username ? ' (@' + user.username + ')' : ''}\n` +
-    `💎 Package: ${pay.duration} (${fmtMoney(pay.price)})\n` +
+  await safeEdit(ctx,
+    `💳 <b>Pending Payment</b>\n\n` +
+    `👤 User: ${esc(userLabel(user))}\n` +
+    `💎 Package: ${esc(pay.duration)} (${esc(fmtMoney(pay.price))})\n` +
     `📅 Date: ${new Date(pay.createdAt).toLocaleString()}\n\n` +
     `${db.pendingPayments.length} Pending total`,
-    {
-      parse_mode: 'Markdown',
-      ...Markup.inlineKeyboard([
-        [
-          Markup.button.callback('✅ Approve', `adm_pay_ok_${pay.id}`),
-          Markup.button.callback('❌ Reject', `adm_pay_no_${pay.id}`),
-        ],
-        [Markup.button.callback('🔙 Admin', 'adm_back')],
-      ])
-    }
+    Markup.inlineKeyboard([
+      [
+        Markup.button.callback('✅ Approve', `adm_pay_ok_${pay.id}`),
+        Markup.button.callback('❌ Reject', `adm_pay_no_${pay.id}`),
+      ],
+      [Markup.button.callback('🔙 Admin', 'adm_back')],
+    ])
   );
 });
 
 bot.action(/^adm_pay_ok_(.+)$/, async (ctx) => {
-  await ctx.answerCbQuery();
+  await ctx.answerCbQuery().catch(() => {});
   if (!isAdmin(ctx)) return;
   const payId = ctx.match[1];
   const db = loadDB();
   const idx = db.pendingPayments.findIndex(p => p.id === payId);
-  if (idx === -1) return ctx.editMessageText('❌ Payment not found', { ...Markup.inlineKeyboard([[Markup.button.callback('🔙 Admin', 'adm_back')]]) });
+  if (idx === -1) return safeEdit(ctx, '❌ Payment not found', Markup.inlineKeyboard([[Markup.button.callback('🔙 Admin', 'adm_back')]]));
 
   const pay = db.pendingPayments.splice(idx, 1)[0];
   const user = db.users[pay.userId];
   if (user) {
     user.premiumPurchased = (user.premiumPurchased || 0) + 1;
-    // If user was referred, save referrer info for when code is redeemed
     pay.referredBy = user.referredBy;
   }
 
-  // Generate premium code
   const code = generateCode();
   db.premiumCodes[code] = {
     code, used: false, usedBy: null,
@@ -403,153 +438,125 @@ bot.action(/^adm_pay_ok_(.+)$/, async (ctx) => {
   };
   saveDB(db);
 
-  // Notify user
   try {
     await bot.telegram.sendMessage(
       pay.userId,
-      `✅ *Payment Approved!*\n\n🎉 អរគុណសម្រាប់ការទិញ!\n\n🔐 *Premium Code របស់អ្នក:*\n\`${code}\`\n\nសូមចុច 🎁 បញ្ចូល Premium Code ដើម្បីបញ្ចូល Code!`,
-      { parse_mode: 'Markdown', ...MAIN_MENU }
+      `✅ <b>Payment Approved!</b>\n\n🎉 អរគុណសម្រាប់ការទិញ!\n\n🔐 <b>Premium Code របស់អ្នក:</b>\n<code>${code}</code>\n\nចុច 🎁 <b>បញ្ចូល Premium Code</b> ដើម្បីបញ្ចូល Code!`,
+      { parse_mode: 'HTML', ...MAIN_MENU }
     );
   } catch (e) { console.error('Cannot notify user:', e.message); }
 
-  await ctx.editMessageText(`✅ Approved! Code: \`${code}\` sent to user.`, { parse_mode: 'Markdown', ...Markup.inlineKeyboard([[Markup.button.callback('🔙 Admin', 'adm_back')]]) });
+  await safeEdit(ctx,
+    `✅ Approved! Code: <code>${code}</code> sent to user.`,
+    Markup.inlineKeyboard([[Markup.button.callback('🔙 Admin', 'adm_back')]])
+  );
 });
 
 bot.action(/^adm_pay_no_(.+)$/, async (ctx) => {
-  await ctx.answerCbQuery();
+  await ctx.answerCbQuery().catch(() => {});
   if (!isAdmin(ctx)) return;
   const payId = ctx.match[1];
   const db = loadDB();
   const idx = db.pendingPayments.findIndex(p => p.id === payId);
-  if (idx === -1) return ctx.editMessageText('❌ Payment not found', { ...Markup.inlineKeyboard([[Markup.button.callback('🔙 Admin', 'adm_back')]]) });
+  if (idx === -1) return safeEdit(ctx, '❌ Payment not found', Markup.inlineKeyboard([[Markup.button.callback('🔙 Admin', 'adm_back')]]));
   const pay = db.pendingPayments.splice(idx, 1)[0];
   saveDB(db);
 
   try {
     await bot.telegram.sendMessage(
       pay.userId,
-      `❌ *Payment Rejected*\n\nការបង់ប្រាក់របស់អ្នកត្រូវបានបដិសេធ។\nសូមទាក់ទង Admin: 👤 @${ADMIN_USERNAME}`,
-      { parse_mode: 'Markdown' }
+      `❌ <b>Payment Rejected</b>\n\nការបង់ប្រាក់របស់អ្នកត្រូវបានបដិសេធ។\nសូមទាក់ទង Admin: 👤 @${ADMIN_USERNAME}`,
+      { parse_mode: 'HTML' }
     );
   } catch (e) {}
 
-  await ctx.editMessageText('❌ Payment rejected.', { ...Markup.inlineKeyboard([[Markup.button.callback('🔙 Admin', 'adm_back')]]) });
+  await safeEdit(ctx, '❌ Payment rejected.', Markup.inlineKeyboard([[Markup.button.callback('🔙 Admin', 'adm_back')]]));
 });
 
 bot.action('adm_withdrawals', async (ctx) => {
-  await ctx.answerCbQuery();
+  await ctx.answerCbQuery().catch(() => {});
   if (!isAdmin(ctx)) return;
   const db = loadDB();
   if (db.pendingWithdrawals.length === 0) {
-    return ctx.editMessageText('✅ គ្មាន Pending Withdrawals', { ...Markup.inlineKeyboard([[Markup.button.callback('🔙 Admin', 'adm_back')]]) });
+    return safeEdit(ctx, '✅ គ្មាន Pending Withdrawals',
+      Markup.inlineKeyboard([[Markup.button.callback('🔙 Admin', 'adm_back')]])
+    );
   }
   const w = db.pendingWithdrawals[0];
   const user = db.users[w.userId];
-  await ctx.editMessageText(
-    `💸 *Pending Withdrawal*\n\n` +
-    `👤 User: ${user?.firstName || 'N/A'}${user?.username ? ' (@' + user.username + ')' : ''}\n` +
-    `💵 Amount: *${fmtMoney(w.amount)}*\n` +
+  await safeEdit(ctx,
+    `💸 <b>Pending Withdrawal</b>\n\n` +
+    `👤 User: ${esc(userLabel(user))}\n` +
+    `💵 Amount: <b>${fmtMoney(w.amount)}</b>\n` +
     `📅 Date: ${new Date(w.createdAt).toLocaleString()}\n\n` +
     `${db.pendingWithdrawals.length} Pending total\n\n` +
-    `_QR image sent separately_`,
-    {
-      parse_mode: 'Markdown',
-      ...Markup.inlineKeyboard([
-        [
-          Markup.button.callback('✅ Approve', `adm_with_ok_${w.id}`),
-          Markup.button.callback('❌ Reject', `adm_with_no_${w.id}`),
-        ],
-        [Markup.button.callback('🔙 Admin', 'adm_back')],
-      ])
-    }
+    `<i>QR image was forwarded separately</i>`,
+    Markup.inlineKeyboard([
+      [
+        Markup.button.callback('✅ Approve', `adm_with_ok_${w.id}`),
+        Markup.button.callback('❌ Reject', `adm_with_no_${w.id}`),
+      ],
+      [Markup.button.callback('🔙 Admin', 'adm_back')],
+    ])
   );
 });
 
 bot.action(/^adm_with_ok_(.+)$/, async (ctx) => {
-  await ctx.answerCbQuery();
+  await ctx.answerCbQuery().catch(() => {});
   if (!isAdmin(ctx)) return;
   const wId = ctx.match[1];
   const db = loadDB();
   const idx = db.pendingWithdrawals.findIndex(w => w.id === wId);
-  if (idx === -1) return ctx.editMessageText('❌ Not found', { ...Markup.inlineKeyboard([[Markup.button.callback('🔙 Admin', 'adm_back')]]) });
+  if (idx === -1) return safeEdit(ctx, '❌ Not found', Markup.inlineKeyboard([[Markup.button.callback('🔙 Admin', 'adm_back')]]));
   const w = db.pendingWithdrawals.splice(idx, 1)[0];
   const user = db.users[w.userId];
-  const prevBalance = user ? user.wallet : 0;
-  if (user) {
-    user.wallet = Math.max(0, user.wallet - w.amount);
-    user.wallet = Math.round(user.wallet * 100) / 100;
-  }
+  if (user) user.wallet = Math.round(Math.max(0, user.wallet - w.amount) * 100) / 100;
   saveDB(db);
 
   try {
     await bot.telegram.sendMessage(
       w.userId,
-      `✅ *Withdraw Success!*\n\n` +
-      `💸 ដក: *-${fmtMoney(w.amount)}*\n` +
-      `💰 Balance: *${fmtMoney(user?.wallet || 0)}*\n\n` +
-      `Admin បាញ់ប្រាក់ *${fmtMoney(w.amount)}* ទៅ ABA QR របស់អ្នករួចហើយ! 🎉`,
-      { parse_mode: 'Markdown', ...MAIN_MENU }
+      `✅ <b>Withdraw Success!</b>\n\n` +
+      `💸 ដក: <b>-${fmtMoney(w.amount)}</b>\n` +
+      `💰 Balance: <b>${fmtMoney(user?.wallet || 0)}</b>\n\n` +
+      `Admin បាញ់ប្រាក់ <b>${fmtMoney(w.amount)}</b> ទៅ ABA QR របស់អ្នករួចហើយ! 🎉`,
+      { parse_mode: 'HTML', ...MAIN_MENU }
     );
   } catch (e) {}
 
-  await ctx.editMessageText(
-    `✅ Withdraw approved!\nUser: ${user?.firstName} | ${fmtMoney(w.amount)} deducted.\nNew balance: ${fmtMoney(user?.wallet || 0)}`,
-    { ...Markup.inlineKeyboard([[Markup.button.callback('🔙 Admin', 'adm_back')]]) }
+  await safeEdit(ctx,
+    `✅ Withdraw approved! ${esc(fmtMoney(w.amount))} deducted. New balance: ${esc(fmtMoney(user?.wallet || 0))}`,
+    Markup.inlineKeyboard([[Markup.button.callback('🔙 Admin', 'adm_back')]])
   );
 });
 
 bot.action(/^adm_with_no_(.+)$/, async (ctx) => {
-  await ctx.answerCbQuery();
+  await ctx.answerCbQuery().catch(() => {});
   if (!isAdmin(ctx)) return;
   const wId = ctx.match[1];
   const db = loadDB();
   const idx = db.pendingWithdrawals.findIndex(w => w.id === wId);
-  if (idx === -1) return ctx.editMessageText('❌ Not found', { ...Markup.inlineKeyboard([[Markup.button.callback('🔙 Admin', 'adm_back')]]) });
+  if (idx === -1) return safeEdit(ctx, '❌ Not found', Markup.inlineKeyboard([[Markup.button.callback('🔙 Admin', 'adm_back')]]));
   const w = db.pendingWithdrawals.splice(idx, 1)[0];
   const user = db.users[w.userId];
   // Refund the locked amount
-  if (user) {
-    user.wallet = Math.round((user.wallet + w.amount) * 100) / 100;
-  }
+  if (user) user.wallet = Math.round((user.wallet + w.amount) * 100) / 100;
   saveDB(db);
 
   try {
     await bot.telegram.sendMessage(
       w.userId,
-      `❌ *Withdraw Rejected*\n\nសំណើដកប្រាក់ត្រូវបានបដិសេធ។\n💰 Balance returned: *${fmtMoney(user?.wallet || 0)}*\n\nទាក់ទង Admin: 👤 @${ADMIN_USERNAME}`,
-      { parse_mode: 'Markdown' }
+      `❌ <b>Withdraw Rejected</b>\n\nសំណើដកប្រាក់ត្រូវបានបដិសេធ។\n💰 Balance returned: <b>${fmtMoney(user?.wallet || 0)}</b>\n\nទាក់ទង Admin: 👤 @${ADMIN_USERNAME}`,
+      { parse_mode: 'HTML' }
     );
   } catch (e) {}
 
-  await ctx.editMessageText('❌ Withdrawal rejected. Balance refunded.', { ...Markup.inlineKeyboard([[Markup.button.callback('🔙 Admin', 'adm_back')]]) });
-});
-
-bot.action('adm_back', async (ctx) => {
-  await ctx.answerCbQuery();
-  if (!isAdmin(ctx)) return;
-  const db = loadDB();
-  const userCount = Object.keys(db.users).length;
-  const codeCount = Object.keys(db.premiumCodes).length;
-  const usedCodes = Object.values(db.premiumCodes).filter(c => c.used).length;
-  await ctx.editMessageText(
-    `👨‍💻 *Admin Panel*\n\n` +
-    `👥 Users: *${userCount}*\n` +
-    `🔐 Codes: *${codeCount}* (ប្រើហើយ: ${usedCodes})\n` +
-    `⏳ Payments: *${db.pendingPayments.length}*\n` +
-    `⏳ Withdrawals: *${db.pendingWithdrawals.length}*`,
-    {
-      parse_mode: 'Markdown',
-      ...Markup.inlineKeyboard([
-        [Markup.button.callback('👥 មើល Users', 'adm_users')],
-        [Markup.button.callback('🔐 Generate Premium Code', 'adm_gen_code')],
-        [Markup.button.callback('✅ Approve Payments', 'adm_payments')],
-        [Markup.button.callback('💸 Approve Withdrawals', 'adm_withdrawals')],
-      ])
-    }
+  await safeEdit(ctx, '❌ Withdrawal rejected. Balance refunded.',
+    Markup.inlineKeyboard([[Markup.button.callback('🔙 Admin', 'adm_back')]])
   );
 });
 
-// ─── /notify command (Admin broadcast) ───────────────────────────────────────
+// ─── /notify broadcast ────────────────────────────────────────────────────────
 bot.command('notify', async (ctx) => {
   if (!isAdmin(ctx)) return ctx.reply('❌ Admin Only');
   const text = ctx.message.text.replace('/notify', '').trim();
@@ -559,12 +566,20 @@ bot.command('notify', async (ctx) => {
   let sent = 0, failed = 0;
   for (const u of users) {
     try {
-      await bot.telegram.sendMessage(u.id, `📢 *Announcement*\n\n${text}`, { parse_mode: 'Markdown' });
+      await bot.telegram.sendMessage(u.id, `📢 <b>Announcement</b>\n\n${esc(text)}`, { parse_mode: 'HTML' });
       sent++;
     } catch { failed++; }
-    await new Promise(r => setTimeout(r, 50)); // rate limit
+    await new Promise(r => setTimeout(r, 50));
   }
   ctx.reply(`📢 Sent: ${sent} | Failed: ${failed}`);
+});
+
+// ─── /help ────────────────────────────────────────────────────────────────────
+bot.command('help', async (ctx) => {
+  await ctx.reply(
+    `📢 <b>Help</b>\n\nបើរក Menu មិនឃើញ:\nចុច <b>Menu</b> រួច /start\n\n👨‍💻 Contact: @${ADMIN_USERNAME}`,
+    { parse_mode: 'HTML', ...MAIN_MENU }
+  );
 });
 
 // ─── Message handler (state machine) ─────────────────────────────────────────
@@ -573,22 +588,24 @@ bot.on('message', async (ctx) => {
   const user = getOrCreateUser(db, ctx);
   const state = user.state;
 
-  // ── AI mode ──
+  // ── AI mode ──────────────────────────────────────────────────────────────
   if (state === 'waiting_ai') {
     const question = ctx.message.text;
     if (!question) return;
-    const typingMsg = await ctx.reply('🤖 _កំពុងគិត..._', { parse_mode: 'Markdown' });
+
+    const typingMsg = await ctx.reply('🤖 <i>កំពុងគិត...</i>', { parse_mode: 'HTML' });
 
     try {
       const completion = await groq.chat.completions.create({
-        model: 'llama3-8b-8192',
+        model: 'llama-3.1-8b-instant',
         messages: [
           {
             role: 'system',
-            content: `You are a helpful assistant for a Telegram Premium Sales Bot. 
+            content: `You are a helpful assistant for a Telegram Premium Sales Bot.
 Answer questions about: Telegram Premium features, pricing (1 month $4.99, 3 months $12.99, 6 months $17.49, 1 year $31.99), benefits, how to buy, delivery time, and safety/security.
-Respond in Khmer (Cambodian) language when the user writes in Khmer. Be friendly, concise, and helpful.
-The admin is @CryptoSinnals_99K. Payment is via ABA QR code.`
+Always respond in Khmer (Cambodian) language. Be friendly, concise, and helpful.
+The admin is @CryptoSinnals_99K. Payment is via ABA QR code (scan and pay with ABA Bank app).
+After payment, users must send a screenshot to the admin who then approves and issues a Premium Code.`
           },
           { role: 'user', content: question }
         ],
@@ -597,42 +614,40 @@ The admin is @CryptoSinnals_99K. Payment is via ABA QR code.`
       });
 
       const answer = completion.choices[0]?.message?.content || 'សូមអភ័យទោស, មានបញ្ហាក្នុងការឆ្លើយ';
-      await bot.telegram.editMessageText(ctx.chat.id, typingMsg.message_id, null, `🤖 *AI Assistant*\n\n${answer}\n\n_សួរទៀតបាន ឬចុច 🔙 ដើម្បីត្រឡប់_`, { parse_mode: 'Markdown' });
+      await bot.telegram.editMessageText(
+        ctx.chat.id, typingMsg.message_id, null,
+        `🤖 <b>AI Assistant</b>\n\n${esc(answer)}`,
+        { parse_mode: 'HTML' }
+      );
     } catch (e) {
       console.error('Groq error:', e.message);
-      await bot.telegram.editMessageText(ctx.chat.id, typingMsg.message_id, null, '❌ AI Error. សូមព្យាយាមម្ដងទៀត', {});
+      await bot.telegram.editMessageText(
+        ctx.chat.id, typingMsg.message_id, null,
+        '❌ AI Error. សូមព្យាយាមម្ដងទៀត'
+      ).catch(() => {});
     }
 
-    // Keep in AI mode; show back button
-    await ctx.reply('💬 _វាយសំណួរថ្មីទៀត ឬ_', { parse_mode: 'Markdown', ...BACK_BTN });
+    await ctx.reply('💬 <i>វាយសំណួរថ្មីទៀត ឬ</i>', { parse_mode: 'HTML', ...BACK_BTN });
     return;
   }
 
-  // ── Premium Code mode ──
+  // ── Premium Code mode ─────────────────────────────────────────────────────
   if (state === 'waiting_code') {
     const code = (ctx.message.text || '').trim().toUpperCase();
     if (code.length !== 20) {
-      return ctx.reply('❌ Code ត្រូវតែ 20 តួ! សូមព្យាយាមម្ដងទៀត');
+      return ctx.reply('❌ Code ត្រូវតែ <b>20 តួ</b>! សូមព្យាយាមម្ដងទៀត', { parse_mode: 'HTML' });
     }
 
     const codeEntry = db.premiumCodes[code];
     if (!codeEntry) {
-      user.state = null;
-      saveDB(db);
-      return ctx.reply('❌ Code មិនត្រឹមត្រូវ ឬមិនមាននៅក្នុងប្រព័ន្ធ!', BACK_BTN);
+      user.state = null; saveDB(db);
+      return ctx.reply('❌ Code <b>មិនត្រឹមត្រូវ</b> ឬមិនមាននៅក្នុងប្រព័ន្ធ!', { parse_mode: 'HTML', ...BACK_BTN });
     }
     if (codeEntry.used) {
-      user.state = null;
-      saveDB(db);
-      return ctx.reply('❌ Code នេះត្រូវបានប្រើរួចហើយ!', BACK_BTN);
-    }
-    if (codeEntry.usedBy === user.id) {
-      user.state = null;
-      saveDB(db);
-      return ctx.reply('❌ អ្នកបានប្រើ Code នេះរួចហើយ!', BACK_BTN);
+      user.state = null; saveDB(db);
+      return ctx.reply('❌ Code នេះ <b>ត្រូវបានប្រើរួចហើយ</b>!', { parse_mode: 'HTML', ...BACK_BTN });
     }
 
-    // Mark code as used
     codeEntry.used = true;
     codeEntry.usedBy = user.id;
     codeEntry.usedAt = Date.now();
@@ -644,12 +659,11 @@ The admin is @CryptoSinnals_99K. Payment is via ABA QR code.`
       db.users[referrerId].wallet = Math.round((db.users[referrerId].wallet + 0.20) * 100) / 100;
       db.users[referrerId].referralCount = (db.users[referrerId].referralCount || 0) + 1;
       referrerRewarded = true;
-      // Notify referrer
       try {
         await bot.telegram.sendMessage(
           referrerId,
-          `🎉 *Referral Bonus!*\n\n👥 មិត្តរបស់អ្នកទើបតែប្រើ Premium Code!\n💰 Wallet +*0.20$*\n\n💵 Balance: *${fmtMoney(db.users[referrerId].wallet)}*`,
-          { parse_mode: 'Markdown' }
+          `🎉 <b>Referral Bonus!</b>\n\n👥 មិត្តរបស់អ្នកទើបតែប្រើ Premium Code!\n💰 Wallet <b>+0.20$</b>\n\n💵 Balance: <b>${fmtMoney(db.users[referrerId].wallet)}</b>`,
+          { parse_mode: 'HTML' }
         );
       } catch (e) {}
     }
@@ -658,99 +672,113 @@ The admin is @CryptoSinnals_99K. Payment is via ABA QR code.`
     saveDB(db);
 
     await ctx.reply(
-      `✅ *Code Accepted!*\n\n\`${code}\`\n\n` +
-      (referrerRewarded ? `👥 Referral Bonus sent to your referrer: *+0.20$*\n\n` : '') +
+      `✅ <b>Code Accepted!</b>\n\n<code>${code}</code>\n\n` +
+      (referrerRewarded ? `👥 Referral Bonus sent to your referrer: <b>+0.20$</b>\n\n` : '') +
       `🎉 Telegram Premium activated!\nច្រើនអរគុណ! 💎`,
-      { parse_mode: 'Markdown', ...MAIN_MENU }
+      { parse_mode: 'HTML', ...MAIN_MENU }
     );
     return;
   }
 
-  // ── Withdraw QR mode ──
+  // ── Withdraw QR mode ──────────────────────────────────────────────────────
   if (state === 'waiting_withdraw_qr') {
     const hasPhoto = ctx.message.photo;
     const hasDoc = ctx.message.document;
 
     if (!hasPhoto && !hasDoc) {
-      return ctx.reply('📷 សូមផ្ញើ *ABA QR* ជា រូបភាព', { parse_mode: 'Markdown' });
+      return ctx.reply('📷 សូមផ្ញើ <b>ABA QR</b> ជា រូបភាព', { parse_mode: 'HTML' });
     }
 
-    const amount = 2.00; // Fixed withdrawal amount
+    const amount = 2.00;
     if (user.wallet < amount) {
-      user.state = null;
-      saveDB(db);
-      return ctx.reply(`❌ Balance មិនគ្រប់! Balance: *${fmtMoney(user.wallet)}*`, { parse_mode: 'Markdown', ...BACK_BTN });
+      user.state = null; saveDB(db);
+      return ctx.reply(`❌ Balance មិនគ្រប់! Balance: <b>${fmtMoney(user.wallet)}</b>`, { parse_mode: 'HTML', ...BACK_BTN });
     }
 
-    // Lock the amount
     user.wallet = Math.round((user.wallet - amount) * 100) / 100;
     user.state = null;
 
     const withdrawId = 'W' + Date.now();
     const fileId = hasPhoto ? hasPhoto[hasPhoto.length - 1].file_id : hasDoc.file_id;
 
-    db.pendingWithdrawals.push({
-      id: withdrawId,
-      userId: user.id,
-      amount,
-      qrFileId: fileId,
-      createdAt: Date.now(),
-    });
+    db.pendingWithdrawals.push({ id: withdrawId, userId: user.id, amount, qrFileId: fileId, createdAt: Date.now() });
     saveDB(db);
 
-    // Notify admin
     const db2 = loadDB();
     if (db2.adminChatId) {
       try {
         await bot.telegram.sendPhoto(
-          db2.adminChatId,
-          fileId,
+          db2.adminChatId, fileId,
           {
-            caption: `💸 *Withdraw Request*\n\n👤 ${user.firstName}${user.username ? ' (@' + user.username + ')' : ''}\n💵 Amount: *${fmtMoney(amount)}*\n🆔 ID: ${withdrawId}`,
-            parse_mode: 'Markdown',
+            caption: `💸 <b>Withdraw Request</b>\n\n👤 ${esc(userLabel(user))}\n💵 Amount: <b>${fmtMoney(amount)}</b>\n🆔 ID: ${withdrawId}`,
+            parse_mode: 'HTML',
           }
-        );
-        await bot.telegram.sendMessage(
-          db2.adminChatId,
-          `Approve or reject? Use /admin → Approve Withdrawals`,
-          {}
         );
       } catch (e) { console.error('Admin notify error:', e.message); }
     }
 
     await ctx.reply(
-      `✅ *Withdraw Request Submitted!*\n\n💸 Amount: *${fmtMoney(amount)}*\nAAdmin នឹងផ្ទៀងផ្ទាត់ក្នុងពេលឆាប់ៗ! ⏳`,
-      { parse_mode: 'Markdown', ...MAIN_MENU }
+      `✅ <b>Withdraw Request Submitted!</b>\n\n💸 Amount: <b>${fmtMoney(amount)}</b>\nAdmin នឹងផ្ទៀងផ្ទាត់ក្នុងពេលឆាប់ៗ! ⏳`,
+      { parse_mode: 'HTML', ...MAIN_MENU }
     );
     return;
   }
 
-  // ── Default: Payment screenshot ──
-  // If user sends a photo in normal state, treat as payment screenshot
+  // ── User sends a photo with no state (payment screenshot) ─────────────────
   if (ctx.message.photo) {
+    const db2 = loadDB();
+    const fileId = ctx.message.photo[ctx.message.photo.length - 1].file_id;
+
+    // Try to match to a recent pending package (last interacted)
+    const pendingPay = {
+      id: 'P' + Date.now(),
+      userId: user.id,
+      duration: 'unknown',
+      price: 0,
+      screenshotFileId: fileId,
+      createdAt: Date.now(),
+    };
+    db2.pendingPayments.push(pendingPay);
+    saveDB(db2);
+
+    // Forward to admin
+    if (db2.adminChatId) {
+      try {
+        await bot.telegram.sendPhoto(
+          db2.adminChatId, fileId,
+          {
+            caption: `💳 <b>Payment Screenshot</b>\n\n👤 ${esc(userLabel(user))}\n🆔 ID: ${pendingPay.id}\n\nប្រើ /admin → Approve Payments`,
+            parse_mode: 'HTML',
+          }
+        );
+      } catch (e) {}
+    }
+
     await ctx.reply(
-      `📷 បានទទួល Screenshot!\n\nAdmin នឹង Review ហើយ Approve ក្នុងពេលឆាប់ៗ.\n\nប្រសិនបើអ្នកមិនទាន់បង់ប្រាក់ ចូរ ►ទិញ Premium◄ ជាមុន!`,
-      BACK_BTN
+      `📷 <b>Screenshot បានទទួល!</b>\n\nAdmin នឹង Review ហើយ Approve ក្នុងពេលឆាប់ៗ ⏳\n\nអ្នកនឹងទទួល Premium Code ពេល Admin Approve!`,
+      { parse_mode: 'HTML', ...MAIN_MENU }
     );
     return;
   }
 
-  // Default fallback
+  // ── Default fallback ──────────────────────────────────────────────────────
   if (ctx.message.text && !ctx.message.text.startsWith('/')) {
     await ctx.reply(
-      `🤖 ចុច /start ដើម្បីចាប់ផ្ដើមម្ដងទៀត ឬជ្រើសរើស Menu 👇`,
-      MAIN_MENU
+      `🤖 ចុច /start ដើម្បីចាប់ផ្ដើម ឬជ្រើសសេវាខាងក្រោម 👇`,
+      { parse_mode: 'HTML', ...MAIN_MENU }
     );
   }
 });
 
-// ─── /help ────────────────────────────────────────────────────────────────────
-bot.command('help', async (ctx) => {
-  await ctx.reply(
-    `📢 *Help*\n\nបើរក Menu មិនឃើញ:\nចុច *Menu* រួច */start*\n\n` +
-    `👨‍💻 Contact: @${ADMIN_USERNAME}`,
-    { parse_mode: 'Markdown', ...MAIN_MENU }
-  );
+// ─── Global error handler ─────────────────────────────────────────────────────
+bot.catch((err, ctx) => {
+  const msg = err?.message || '';
+  if (msg.includes('message is not modified')) return;
+  if (msg.includes('message to edit not found')) return;
+  if (msg.includes('query is too old')) return;
+  if (msg.includes('bot was blocked')) return;
+  console.error('Bot error:', msg);
+  try { ctx.reply('❌ មានបញ្ហា។ សូម /start ម្ដងទៀត').catch(() => {}); } catch {}
 });
 
 // ─── Launch ───────────────────────────────────────────────────────────────────
@@ -764,6 +792,5 @@ bot.launch()
     process.exit(1);
   });
 
-// Graceful stop
 process.once('SIGINT', () => bot.stop('SIGINT'));
 process.once('SIGTERM', () => bot.stop('SIGTERM'));
