@@ -4,11 +4,11 @@
       "id": "8104083569",
       "username": "CryptoSinnals_99K",
       "firstName": "NAROTO",
-      "wallet": 0.4,
-      "referralCount": 2,
+      "wallet": 0,
+      "referralCount": 10,
       "premiumPurchased": 0,
       "referredBy": null,
-      "state": "waiting_ai",
+      "state": null,
       "stateData": {},
       "createdAt": 1785146464583
     },
@@ -92,7 +92,7 @@
       "referralCount": 0,
       "premiumPurchased": 0,
       "referredBy": "8104083569",
-      "state": "waiting_ai",
+      "state": "waiting_code",
       "stateData": {},
       "createdAt": 1785197539158
     }
@@ -137,6 +137,70 @@
       "generatedAt": 1785147780398,
       "generatedBy": "admin",
       "usedAt": 1785147794453
+    },
+    "TGCLTERBDX75K9KUGPTT": {
+      "code": "TGCLTERBDX75K9KUGPTT",
+      "used": true,
+      "usedBy": "8796001987",
+      "generatedAt": 1785197696933,
+      "generatedBy": "admin",
+      "usedAt": 1785197710298
+    },
+    "TG22HV5PDW5VWYGHPPE6": {
+      "code": "TG22HV5PDW5VWYGHPPE6",
+      "used": true,
+      "usedBy": "8796001987",
+      "generatedAt": 1785197722467,
+      "generatedBy": "admin",
+      "usedAt": 1785197731680
+    },
+    "TG2D2KR2A3KTWGSKCB5T": {
+      "code": "TG2D2KR2A3KTWGSKCB5T",
+      "used": true,
+      "usedBy": "8796001987",
+      "generatedAt": 1785197744362,
+      "generatedBy": "admin",
+      "usedAt": 1785197751058
+    },
+    "TGL3LCFVKUTLCE7YNSYH": {
+      "code": "TGL3LCFVKUTLCE7YNSYH",
+      "used": true,
+      "usedBy": "8796001987",
+      "generatedAt": 1785197765261,
+      "generatedBy": "admin",
+      "usedAt": 1785197772837
+    },
+    "TG42TB9BLTWPSUTJJD65": {
+      "code": "TG42TB9BLTWPSUTJJD65",
+      "used": true,
+      "usedBy": "8796001987",
+      "generatedAt": 1785197784615,
+      "generatedBy": "admin",
+      "usedAt": 1785197791819
+    },
+    "TGR5V6UE5CB36CDV8ZNU": {
+      "code": "TGR5V6UE5CB36CDV8ZNU",
+      "used": true,
+      "usedBy": "8796001987",
+      "generatedAt": 1785197803634,
+      "generatedBy": "admin",
+      "usedAt": 1785197811311
+    },
+    "TGYQRBPXW4M5YAWQPBPW": {
+      "code": "TGYQRBPXW4M5YAWQPBPW",
+      "used": true,
+      "usedBy": "8796001987",
+      "generatedAt": 1785197822898,
+      "generatedBy": "admin",
+      "usedAt": 1785197832698
+    },
+    "TGKLLD7ECJU3FG27U9KL": {
+      "code": "TGKLLD7ECJU3FG27U9KL",
+      "used": true,
+      "usedBy": "8796001987",
+      "generatedAt": 1785197846673,
+      "generatedBy": "admin",
+      "usedAt": 1785197857179
     }
   },
   "pendingPayments": [],
