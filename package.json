@@ -1,10 +1,12 @@
 {
   "name": "telegram-premium-bot",
   "version": "1.0.0",
-  "description": "Telegram Premium Sales Bot",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
+  },
+  "engines": {
+    "node": "20.x"
   },
   "dependencies": {
     "groq-sdk": "^0.9.1",
