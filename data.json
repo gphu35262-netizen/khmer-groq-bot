@@ -8,7 +8,7 @@
       "referralCount": 10,
       "premiumPurchased": 0,
       "referredBy": null,
-      "state": null,
+      "state": "waiting_code",
       "stateData": {},
       "createdAt": 1785146464583
     },
@@ -107,6 +107,18 @@
       "state": null,
       "stateData": {},
       "createdAt": 1785199132213
+    },
+    "6179932636": {
+      "id": "6179932636",
+      "username": "Parisvvv",
+      "firstName": "亗 𝑷𝑨𝑹𝑰𝑺 亗",
+      "wallet": 0,
+      "referralCount": 0,
+      "premiumPurchased": 0,
+      "referredBy": "8600198449",
+      "state": null,
+      "stateData": {},
+      "createdAt": 1785199840279
     }
   },
   "premiumCodes": {
@@ -223,6 +235,14 @@
       "price": 0,
       "screenshotFileId": "AgACAgUAAxkBAAIFmmpn-n83zj5znaj110soti5W-UqDAAIiFWsby6shV2iLAq80maE2AQADAgADeAADPQQ",
       "createdAt": 1785199231926
+    },
+    {
+      "id": "P1785200000876",
+      "userId": "6179932636",
+      "duration": "unknown",
+      "price": 0,
+      "screenshotFileId": "AgACAgUAAxkBAAIF4mpn_YBLU5rs_e3VwJes_NOSLhViAAJrE2sbNo0RV_F1kfQztcq1AQADAgADeQADPQQ",
+      "createdAt": 1785200000877
     }
   ],
   "pendingWithdrawals": [],
