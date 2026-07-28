@@ -3,7 +3,7 @@ services:
     name: telegram-premium-bot
     env: node
     plan: free
-    buildCommand: npm install
+    buildCommand: npm ci
     startCommand: npm start
     envVars:
       - key: TELEGRAM_BOT_TOKEN
