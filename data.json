@@ -80,7 +80,7 @@
       "referralCount": 0,
       "premiumPurchased": 0,
       "referredBy": "8104083569",
-      "state": "waiting_ai",
+      "state": null,
       "stateData": {},
       "createdAt": 1785197539150
     },
@@ -95,6 +95,18 @@
       "state": "waiting_code",
       "stateData": {},
       "createdAt": 1785197539158
+    },
+    "8296041019": {
+      "id": "8296041019",
+      "username": "mabjackdk1688",
+      "firstName": "𝑴𝑨𝑩 𝑱𝑨𝑪𝑲",
+      "wallet": 0,
+      "referralCount": 0,
+      "premiumPurchased": 0,
+      "referredBy": "8600198449",
+      "state": null,
+      "stateData": {},
+      "createdAt": 1785199132213
     }
   },
   "premiumCodes": {
@@ -203,7 +215,16 @@
       "usedAt": 1785197857179
     }
   },
-  "pendingPayments": [],
+  "pendingPayments": [
+    {
+      "id": "P1785199231926",
+      "userId": "8600198449",
+      "duration": "unknown",
+      "price": 0,
+      "screenshotFileId": "AgACAgUAAxkBAAIFmmpn-n83zj5znaj110soti5W-UqDAAIiFWsby6shV2iLAq80maE2AQADAgADeAADPQQ",
+      "createdAt": 1785199231926
+    }
+  ],
   "pendingWithdrawals": [],
   "adminChatId": "8104083569"
 }
