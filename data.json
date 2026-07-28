@@ -8,7 +8,7 @@
       "referralCount": 2,
       "premiumPurchased": 0,
       "referredBy": null,
-      "state": null,
+      "state": "waiting_ai",
       "stateData": {},
       "createdAt": 1785146464583
     },
@@ -35,6 +35,66 @@
       "state": null,
       "stateData": {},
       "createdAt": 1785147760152
+    },
+    "8572324721": {
+      "id": "8572324721",
+      "username": "Kenzuto_denzu",
+      "firstName": "𝐷𝐸𝑁𝑍𝑈",
+      "wallet": 0,
+      "referralCount": 0,
+      "premiumPurchased": 0,
+      "referredBy": "8104083569",
+      "state": "waiting_ai",
+      "stateData": {},
+      "createdAt": 1785148275623
+    },
+    "7222653054": {
+      "id": "7222653054",
+      "username": "SOK_PHAI_KH",
+      "firstName": "HH JK",
+      "wallet": 0,
+      "referralCount": 0,
+      "premiumPurchased": 0,
+      "referredBy": "8104083569",
+      "state": null,
+      "stateData": {},
+      "createdAt": 1785148296750
+    },
+    "8744596998": {
+      "id": "8744596998",
+      "username": "KIRAGaming1",
+      "firstName": "𝙆𝙄𝙍𝘼 𝙂𝙖𝙢𝙞𝙣𝙜",
+      "wallet": 0,
+      "referralCount": 0,
+      "premiumPurchased": 0,
+      "referredBy": "8104083569",
+      "state": null,
+      "stateData": {},
+      "createdAt": 1785148983445
+    },
+    "8600198449": {
+      "id": "8600198449",
+      "username": "King_Sina168",
+      "firstName": "Sina",
+      "wallet": 0,
+      "referralCount": 0,
+      "premiumPurchased": 0,
+      "referredBy": "8104083569",
+      "state": null,
+      "stateData": {},
+      "createdAt": 1785197539150
+    },
+    "8558961761": {
+      "id": "8558961761",
+      "username": "x1night_1",
+      "firstName": "X1night",
+      "wallet": 0,
+      "referralCount": 0,
+      "premiumPurchased": 0,
+      "referredBy": "8104083569",
+      "state": "waiting_ai",
+      "stateData": {},
+      "createdAt": 1785197539158
     }
   },
   "premiumCodes": {

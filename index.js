@@ -1,5 +1,6 @@
 const { Telegraf, Markup } = require('telegraf');
 const Groq = require('groq-sdk');
+const express = require('express');
 const fs = require('fs');
 const path = require('path');
 
@@ -678,6 +679,35 @@ bot.catch((err, ctx) => {
   if (msg.includes('user is deactivated')) return;
   console.error('Bot error:', msg);
   try { ctx.reply('❌ មានបញ្ហា។ សូម /start ម្ដងទៀត').catch(() => {}); } catch {}
+});
+
+// ─── Health-check HTTP server (keeps Render free tier alive) ─────────────────
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+app.get('/', (req, res) => {
+  res.send(`
+    <html><body style="font-family:sans-serif;text-align:center;padding:40px">
+      <h1>🤖 Telegram Premium Bot</h1>
+      <p>✅ Bot is running 24/7</p>
+      <p>Admin: @${ADMIN_USERNAME}</p>
+    </body></html>
+  `);
+});
+
+app.get('/health', (req, res) => {
+  const db = loadDB();
+  res.json({
+    status: 'ok',
+    users: Object.keys(db.users).length,
+    pendingPayments: db.pendingPayments.length,
+    pendingWithdrawals: db.pendingWithdrawals.length,
+    uptime: Math.floor(process.uptime()) + 's',
+  });
+});
+
+app.listen(PORT, () => {
+  console.log(`🌐 Health-check server running on port ${PORT}`);
 });
 
 // ─── Launch ───────────────────────────────────────────────────────────────────
