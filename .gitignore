@@ -1,5 +1,4 @@
 # Node
-node_modules/
 npm-debug.log*
 
 # Bot data (local only — use a database on Render)
