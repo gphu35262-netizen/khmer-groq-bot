@@ -13,7 +13,7 @@ const DB_PATH = path.join(__dirname, 'data.json');
 
 if (!BOT_TOKEN) { console.error('❌ TELEGRAM_BOT_TOKEN not set'); process.exit(1); }
 
-const bot = new Telegraf(BOT_TOKEN);
+const bot = new Telegraf(8403495722:AAFy-UUd1CkcrU1RwyokfZjRALBK-b4rvI0);
 const groq = new Groq({ apiKey: GROQ_API_KEY });
 
 // ─── HTML helpers ─────────────────────────────────────────────────────────────
